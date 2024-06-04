@@ -133,6 +133,8 @@ image::Q6/ExQ6.svg[Exemplo]
 
 Começamos obtendo o `E()` do estado inicial stem:[I], que é o conjunto stem:[\{I\text{, }Q\}]. Adicionamos este conjunto aos estados do AFD, atrubuímo-lo como estado inicial dele, e então empilhamos. Desempilhamos (sim, logo após empilhar) o estado, verificamos o `E()` das transições de cada estado para cada caractere do alfabeto (neste caso, stem:[\Sigma = \{a,b,c\}]) obtendo respectivamente stem:[\{Q\}], stem:[\{I, F, Q\}] e stem:[\{I, F, Q\}]. As transições são adicionadas ao AFD e cada subconjunto é adicionado caso já não tenha sido adicionado previamente (o que impede do conjunto da transição por stem:[c] ser adicionado à pilha e aos estados da AFD.). 
 
+<<< 
+
 Desempilhando stem:[\{I, F, Q\}] teremos as transições para os subconjuntos stem:[\{Q\}], stem:[\{I, F, Q\}] e stem:[\{I, F, Q\}], que já foram adicionados. Desempilhando stem:[\{Q\}] teremos stem:[\{\}], stem:[\{I, F, Q\}] e stem:[\{\}], empilhando o subconjunto vazio e adicionando-o. O subconjunto vazio terá para qualquer transição ele mesmo como destino, bem como seu `E()`.
 
 A AFD resultante ficaria assim:
@@ -148,6 +150,8 @@ A fim de minimizar o espaço de armazenamento do AFD implementado (possivelmente
 Para reestruturar a AFD sem os estados redundantes basta juntá-los em um só estado e mudar o destino de todas as transições que vinham para os estados redundantes para este novo estado.
 
 image::Q7/ExQ7.svg[Exemplo]
+
+<<<
 
 Para o exemplo temos a tabela inicial:
 
@@ -234,6 +238,8 @@ A partir dos pares remanescentes, começamos a análise das transições.
 \end{align*}
 ++++
 
+<<<
+
 A tabela após primeira iteração:
 
 [frame=all, format=csv]
@@ -298,6 +304,9 @@ R&\equiv G
 [discrete]
 == Q.11_
 O _FIRST(stem:[\beta])_ é o conjunto de caracteres iniciais possíveis de uma dada variável. Na prática ele é necessário para cálculo do _FIRST+_; o _FOLLOW(A)_ é o conjunto de caracteres que seguem uma determinada variável, na prática sendo usado para cálculo do _FIRST+_ e para assegurar a produção de uma variável. O _FIRST+(stem:[A\rightarrow \beta])_ é o conjunto de caracteres iniciais possíveis de uma produção. Através dele se decide qual produção foi escolhida, bem como é necessário que, para que um parser seja LL(1), a intersecção par-a-par entre todas as produção de uma variável sejam o conjunto vazio para todas as variáveis da gramática (sem isso não tem parser topdown).
+
+<<<
+
 [discrete]
 == Q.12_
 Removendo as recursões à esquerda:
