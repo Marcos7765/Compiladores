@@ -1,0 +1,10 @@
+Sem otimização, resultados (100 tentativas): 
+Tempo récorde a.c: 0:01.62
+Tempo récorde b.c: 0:03.21
+Tempo récorde c.c: 0:01.30
+Tempo récorde d.c: 0:00.15
+Otimização O2, resultados (100 tentativas): 
+Tempo récorde a.c: 0:00.57
+Tempo récorde b.c: 0:02.19
+Tempo récorde c.c: 0:00.15
+Tempo récorde d.c: 0:00.15

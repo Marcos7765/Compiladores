@@ -1,0 +1,353 @@
+= Resolução da Lista 1 — Compiladores
+Marcos Vinícius Bandeira Irigoyen
+:stem: latexmath
+
+Questões não resolvidas: 9, 13; +
+(11/13) resolvidas;
+
+Códigos, imagens e o markup deste documento se encontram no https://github.com/Marcos7765/compiladores[repositório].
+
+[discrete]
+== Q.1_
+ 
+....
+Sem otimização, resultados (100 tentativas): 
+Tempo récorde a.c: 0:01.62
+Tempo récorde b.c: 0:03.21
+Tempo récorde c.c: 0:01.30
+Tempo récorde d.c: 0:00.15
+Otimização O2, resultados (100 tentativas): 
+Tempo récorde a.c: 0:00.57
+Tempo récorde b.c: 0:02.19
+Tempo récorde c.c: 0:00.15
+Tempo récorde d.c: 0:00.15
+....
+
+Foram temporizadas 100 execuções de cada programa, primeiramente sem _flags_ de otimização e depois com a _flag_ `O2`. A vantagem clara do programa `d.c` se deve pela função `memset` já ter sido pré-compilada, com as devidas otimizações, para ser _linkada_; enquanto que o programa de `b.c` é fundamentalmente mais lento por iterar pelas linhas na matriz. Os pares `a.c`, `b.c` e `c.c` , `d.c`, apesar de se destinarem ao mesmo uso, o fazem com diferentes abordagens e finda pela abordagem do último par ser mais eficiente. Quando usamos a otimização _O2_ podemos ver com maior facilidade estas diferenças, que o compilador não seria capaz de reduzir sem afetar diretamente a forma que `a.c` e `b.c` operam. (algo próximo do conceito de _Safety/Correctness/meaning_ no livro).
+
+OBS.: Para garantir que o espaço de endereços da matriz seja contíguo é necessário que ele seja feito em uma única chamada de `malloc`, impossibilitando o uso de uma matriz quadrada de 100000 elementos (ultrapassaria os próprios limites de representação do `size_t` no meu pc). Por conta disso, foram feitos testes em menor escala com matrizes quadradas de 46340 elementos.
+
+Algo muito importante de se relembrar é que os dois primeiros modos de se zerar a matriz não dependem da contiguidade entre linhas da matriz na memória, já que os primeiros "[ ]" acessam o endereço do início da linha.
+
+O compilador usado foi o gcc na versão 11.4.0. No lugar de `bzero` foi utilizado `memset(matriz[0], 0, size*size*sizeof(uint8_t))`, que não é lá distante de https://github.com/gcc-mirror/gcc/blob/master/libiberty/bzero.c[como `bzero` é implementado por aí].
+
+[discrete]
+== Q.2_ Compilers are used in many different circumstances. What differences might you expect in compilers designed for the following applications?
+
+[discrete]
+=== a) A just-in-time compiler used to translate user interface code downloaded over a network
+Este caso de uso exigiria um compilador especialmente rápido, compilando incrementalmente conforme o código é baixado para diminuir a latência. Em um caso como _HTML_ ou _QML_ também ocorre da saída do compilador ser uma estrutura de dados (como a _DOM Tree_), que poderia ser alterada dinamicamente, e é destinada a algum programa que renderizasse ela.
+
+[discrete]
+=== b) A compiler that targets the embedded processor used in a cellular telephone
+Uma arquitetura de destino como ARM (se, por alguma razão, você não estiver escrevendo em java/kotlin/flutter/react-native pra android ou esteja programando p/ ios) com uma maior consideração em espaço e consumo de energia (espero eu) na otimização.
+
+[discrete]
+=== c) A compiler used in an introductory programming course at a high school
+Uma versão muitíssimo 'debugável', às custas de capacidade de otimização (parando pra pensar, lop em javascript é horrível nesse ponto), tentando equilibrar isso com fácil prototipagem do código. +
+(extra:), para uma linguagem com menos palavras reservadas, gerenciamento simplificado da memória, imperativa e branda quanto às abstrações como OO ou FP.
+
+[discrete]
+=== d) A compiler used to build wind-tunnel simulations that run on a massively parallel processor (where all processors are identical)
+Otimizações específicas ao conjunto de instruções da versão da arquitetura do processador (como para instruções AVX-512 ao invés das genéricas para x86), bem como etapas mais robustas de análise estática para tentar indicar _race conditions_. Na prática é só o OpenMP e suas macros simplificando códigos paralelizados por _threads_ ou (aparentemente) GPU. (CUDA até onde sei tem um compilador bem normal msm)
+
+
+[discrete]
+=== e) A compiler that targets numerically intensive programs to a large number of diverse machines
+Uma linguagem-alvo na forma de instruções para versões mais genéricas das arquiteturas.
+
+[discrete]
+== Q.3_
+
+image::Q3/DiagEtapas.svg[Diagrama das Etapas]
+
+As etapas são _Front-end_, Otimizador e _Back-end_, onde a primeira e a última etapas (até onde sei) são subdivididas.
+
+image::Q3/DiagFrontend.svg[Diagrama do Front-end]
+
+O front-end é subdividido em analisador léxico, analisador sintático e analisador semântico. O analisador léxico é responsável pelo reconhecimento da categoria das palavras do código na linguagem fonte (em um paralelo ao que seria a ortografia), o analisador sintático é responsável por verificar a estrutura (em um paralelo à coesão) e o analisador semântico se responsabiliza pelas demais regras que não encaixem nesse escopo.
+
+O otimizador seria encarregado de melhorar o código em relação a um ou mais parâmetros (tempo de execução, espaço em memória, consumo de energia), sendo ou não específicas à arquitetura da máquina/linguagem alvo. Por tamanha variação, não há uma subdivisão clara para o otimizador.
+
+image::Q3/DiagBackend.svg[Diagrama do Back-end]
+
+O back-end (neste caso assumindo que a linguagem alvo seja uma linguagem de máquina como assembly) é subdividido em seletor de instruções, responsável por traduzir de fato os comandos do código em instruções de máquina; o escalonador de instruções, que busca arranjar a ordem de execução das instruções a fim de aproveitar de recursos do processador a exemplo de _pipelining_; e o alocador de registradores, que é encarregado de designar e, se necessário, escalonar os registradores físicos do processador às instruções.
+
+[discrete]
+== Q.4_
+
+Começando sempre antes do primeiro caractere. O símbolo ^ vai indicar onde está o ponteiro de leitura.
+
+[discrete]
+=== a) r100
+^r100: Char = r; State = s0; Next = s1; Act = start; +
+r^100: Char = 1; State = s1; Next = s2; Act = add; +
+r1^00: Char = 0; State = s2; Next = s3; Act = add; +
+r10^0: Char = 0; State = s3; Next = se; Act = ; +
+r10^0: Char = 0; State = s3; Next = se; Act = ; +
+Aqui, chegando em se, já poderia parar e subir um erro de scanner, mas o código não cobre. Então ele vai chegar até o final da palavra (r100^), ler EOF, verificar que `se` não é um estado final e 'reportar falha'.
+
+
+[discrete]
+=== b) r3
+^r3: Char = r; State = s0; Next = s1; Act = Start; +
+r^3: Char = 3; State = s1; Next = s5; Act = Add; +
+r3^: Char = EOF; State = s5; Next = se; Act = Exit; +
+É difícil entender se Exit estando no estado `se` vá fazer algo diferente do que entrar em um erro. Mas considerando que esse Exit no Act indique um estado terminal, ele iria reconhecer a palavra. Caso contrário, só é rejeitado mesmo.
+[discrete]
+=== c) r15
+^r15: Char = r; State = s0; Next = s1; Act = Start; +
+r^15: Char = 1; State = s1; Next = s2; Act = Add; +
+r1^5: Char = 5; State = s2; Next = s3; Act = Add; +
+r15^: Char = EOF; State = s3; Next = se; Act = Exit; +
+Mesma situação da alternativa acima.
+[discrete]
+=== d) r07
+^r07: Char = r; State = s0; Next = s1; Act = Start; +
+r^07: Char = 0; State = s1; Next = s2; Act = Add; +
+r0^7: Char = 7; State = s2; Next = s3; Act = Add; +
+r07^: Char = EOF; State = s3; Next = se; Act = Exit; +
+Mesma situação da alternativa acima.
+
+[discrete]
+== Q.5_
+_Kleene's Construction_ se referiria ao algoritmo de conversão de um autômato finito a uma expressão regular, mas não é utilizado no projeto de um _scanner_.
+
+(Li errado a questão, parág. extra:) [.line-through]#_RE_, expressões regulares (ER), são o modelo computacional de onde partimos para descrever as palavras de uma determinada linguagem (neste caso, a linguagem é a categoria de palavras assossiada a ER). Enquanto que modelos equivalentes a ER possuem a mesma capacidade, as ERs são (ou deveriam pelo menos) mais práticas de se elaborar e prototipar mentalmente.#
+
+_Thompson's Construction_ é um algoritmo para transformação de uma expressão regular em um autômato finito não determinístico (AFN). Usamos ele no scanner principalmente por não haver um caminho direto à conversão em autômato finito determinístico, mas AFNs ainda tem uma vantagem (veja adiante).
+
+(Li errado a questão, parág. extra:) [.line-through]#_NFA_, autômato finito não determinístico (AFN), são um passo necessário pela ausência de transformação direta entre ER e autômato finito determinístico, mas serve bem pra ilustrar o processamento 'paralelo' das categorias, que pertencem todas a um autômato da união das ERs de cada categoria.#
+
+_Subset Construction_ é o algoritmo de transformação de um AFN em um AFD. A próxima questão vai falar dele melhor mas é necessário para a conversão em AFD, que é o modelo ao qual o código é baseado.
+
+[discrete]
+== Q.6_
+Para fazer a conversão de um AFN para AFD é necessário lidar com os múltiplos estados ativos possíveis de um AFN. Para tratar isso, cada estado do AFD é equivalente a um conjunto de estados possíveis. O algoritmo de construção de subconjuntos foi feito para fazer esta conversão sem ter que analisar todos os subconjuntos de estados da AFN original.
+
+O estado inicial da AFD é representado pelo `E()` (stem:[\epsilon]-fechamento), que é empilhado numa pilha de subconjuntos de estados. O algoritmo vai operar enquanto a pilha não estiver vazia, desempilhando um subconjunto, verificando as transições de cada estado do subconjunto para cada caractere e incluindo o `E()` dos estados transicionados a um novo subconjunto, adicionando uma transição deste primeiro subconjunto ao novo e empilhando o novo (caso ele seja de fato novo).
+
+Estados na AFD que representem subconjuntos que contenham um estado final da AFN viram estados finais. Seguindo ao exemplo:
+
+image::Q6/ExQ6.svg[Exemplo]
+
+Começamos obtendo o `E()` do estado inicial stem:[I], que é o conjunto stem:[\{I\text{, }Q\}]. Adicionamos este conjunto aos estados do AFD, atrubuímo-lo como estado inicial dele, e então empilhamos. Desempilhamos (sim, logo após empilhar) o estado, verificamos o `E()` das transições de cada estado para cada caractere do alfabeto (neste caso, stem:[\Sigma = \{a,b,c\}]) obtendo respectivamente stem:[\{Q\}], stem:[\{I, F, Q\}] e stem:[\{I, F, Q\}]. As transições são adicionadas ao AFD e cada subconjunto é adicionado caso já não tenha sido adicionado previamente (o que impede do conjunto da transição por stem:[c] ser adicionado à pilha e aos estados da AFD.). 
+
+Desempilhando stem:[\{I, F, Q\}] teremos as transições para os subconjuntos stem:[\{Q\}], stem:[\{I, F, Q\}] e stem:[\{I, F, Q\}], que já foram adicionados. Desempilhando stem:[\{Q\}] teremos stem:[\{\}], stem:[\{I, F, Q\}] e stem:[\{\}], empilhando o subconjunto vazio e adicionando-o. O subconjunto vazio terá para qualquer transição ele mesmo como destino, bem como seu `E()`.
+
+A AFD resultante ficaria assim:
+
+image::Q6/ResQ6.svg[Exemplo]
+
+[discrete]
+== Q.7_
+Foi utilizado o algoritmo apresentado em sala de aula, também descrito https://youtu.be/4pbIkf3FHjM[neste vídeo] porque alguém esqueceu de anotar.
+
+A fim de minimizar o espaço de armazenamento do AFD implementado (possivelmente reduzindo também o tempo), o algoritmo procura por estados equivalentes em um processo de eliminação. Para isso, monta-se uma tabela de cruzamento triangular entre os estados, tal que cada casa da tabela represente um par único de estados. A partir desta tabela, elimina-se os pares do tipo (final, não-final), que trivialmente não são equivalentes, e então é testado, par a par, cada transição. Caso a transição aplicada no par resulte em um par não-equivalente, então o par não é equivalente também (e logo eliminado). Caso o par resultante seja equivalente ou não se saiba ainda se é ou não, passa-se adiante com o algoritmo sem marcá-lo como equivalente ou não. Após passar por todos os pares, caso algum par tenha sido eliminado, você passa novamente checando os pares remanescentes. Quando nenhum par for eliminado, os pares que sobrarem só podem ser equivalentes.
+
+Para reestruturar a AFD sem os estados redundantes basta juntá-los em um só estado e mudar o destino de todas as transições que vinham para os estados redundantes para este novo estado.
+
+image::Q7/ExQ7.svg[Exemplo]
+
+Para o exemplo temos a tabela inicial:
+
+[frame=all, format=csv]
+|===
+1, , --, --, --, --, --,--
+2, , , --, --, --, --,--
+3, , , , --, --, --,--
+4, , , , , --, --,--
+5, , , , , , --,--
+6, , , , , , ,--
+7, , , , , , , 
+S, 0, 1, 2, 3, 4, 5, 6
+|===
+
+De onde podemos eliminar os pares stem:[(0,3)], stem:[(1,3)], stem:[(2,3)], stem:[(4,3)], stem:[(5,3)], stem:[(7,3)], stem:[(0,6)], stem:[(1,6)], stem:[(2,6)], stem:[(4,6)], stem:[(5,6)] e stem:[(7,6)], resultando na tabela:
+
+[frame=all, format=csv]
+|===
+1, , --, --, --, --, --,--
+2, , , --, --, --, --,--
+3, X, X, X, --, --, --,--
+4, , , , X, --, --,--
+5, , , , X, , --,--
+6, X, X, X, , X, X,--
+7, , , , X, , , X 
+S, 0, 1, 2, 3, 4, 5, 6
+|===
+
+A partir dos pares remanescentes, começamos a análise das transições.
+[stem]
+++++
+\begin{align*}
+\delta(\{0,1\}, a) &= \{1, 2\} &\text{(Inconclusivo)} \\
+\delta(\{0,1\}, b) &= \{4, 7\} &\text{(Inconclusivo)} \\
+\\
+\delta(\{0,2\}, a) &= \{1, 7\} &\text{(Inconclusivo)} \\
+\delta(\{0,2\}, b) &= \{4, 3\} &\text{(não-equivalente)} \\
+
+\\
+\delta(\{0,4\}, a) &= \{1, 5\} &\text{(Inconclusivo)} \\
+\delta(\{0,4\}, b) &= \{4, 7\} &\text{(Inconclusivo)} \\
+
+\\
+\delta(\{0,5\}, a) &= \{1, 7\} &\text{(Inconclusivo)} \\
+\delta(\{0,5\}, b) &= \{4, 6\} &\text{(não-equivalente)} \\
+
+\\
+\delta(\{0,7\}, a) &= \{1, 7\} &\text{(Inconclusivo)} \\
+\delta(\{0,7\}, b) &= \{4, 7\} &\text{(Inconclusivo)} \\
+\\
+\delta(\{1,2\}, a) &= \{2, 7\} &\text{(Inconclusivo)} \\
+\delta(\{1,2\}, b) &= \{7, 3\} &\text{(não-equivalente)} \\
+\\
+\delta(\{1,4\}, a) &= \{2, 5\} &\text{(Inconclusivo)} \\
+\delta(\{1,4\}, b) &= \{7, 7\} &\text{(Inconclusivo)} \\
+\\
+\delta(\{1,5\}, a) &= \{2, 7\} &\text{(Inconclusivo)} \\
+\delta(\{1,5\}, b) &= \{7, 6\} &\text{(não-equivalente)} \\
+\\
+\delta(\{1,7\}, a) &= \{2, 7\} &\text{(Inconclusivo)} \\
+\delta(\{1,7\}, b) &= \{7, 7\} &\text{(Inconclusivo)} \\
+\\
+\delta(\{2,4\}, a) &= \{7, 5\} &\text{(Inconclusivo)} \\
+\delta(\{2,4\}, b) &= \{3, 7\} &\text{(não-equivalente)} \\
+\\
+\delta(\{2,5\}, a) &= \{7, 7\} &\text{(Inconclusivo)} \\
+\delta(\{2,5\}, b) &= \{3, 6\} &\text{(Inconclusivo)} \\
+\\
+\delta(\{2,7\}, a) &= \{7, 7\} &\text{(Inconclusivo)} \\
+\delta(\{2,7\}, b) &= \{3, 7\} &\text{(não-equivalente)} \\
+\\
+\delta(\{3,6\}, a) &= \{3, 6\} &\text{(Inconclusivo)} \\
+\delta(\{3,6\}, b) &= \{3, 6\} &\text{(Inconclusivo)} \\
+\\
+\delta(\{4,5\}, a) &= \{5, 7\} &\text{(Inconclusivo)} \\
+\delta(\{4,5\}, b) &= \{7, 6\} &\text{(não-equivalente)} \\
+\\
+\delta(\{4,7\}, a) &= \{5, 7\} &\text{(Inconclusivo)} \\
+\delta(\{4,7\}, b) &= \{7, 7\} &\text{(Inconclusivo)} \\
+\\
+\delta(\{5,7\}, a) &= \{7, 7\} &\text{(Inconclusivo)} \\
+\delta(\{5,7\}, b) &= \{6, 7\} &\text{(não-equivalente)} \\
+\end{align*}
+++++
+
+A tabela após primeira iteração:
+
+[frame=all, format=csv]
+|===
+1, , --, --, --, --, --,--
+2, X, X, --, --, --, --,--
+3, X, X, X, --, --, --,--
+4, , , X, X, --, --,--
+5, X, X, , X, X, --,--
+6, X, X, X, , X, X,--
+7, , , X, X, , X, X 
+S, 0, 1, 2, 3, 4, 5, 6
+|===
+
+Reanalisamos, então, as transições para verificar se algum resultado inconclusivo se mostrou não-equivalente após sua checagem. Com isso, eliminamos os pares stem:[\{0,1\}], stem:[\{0,4\}], stem:[\{1,7\}] e stem:[\{4,7\}]. Esta segunda iteração fornece a seguinte tabela:
+
+[frame=all, format=csv]
+|===
+1, X, --, --, --, --, --,--
+2, X, X, --, --, --, --,--
+3, X, X, X, --, --, --,--
+4, X, , X, X, --, --,--
+5, X, X, , X, X, --,--
+6, X, X, X, , X, X,--
+7, , X, X, X, X, X, X 
+S, 0, 1, 2, 3, 4, 5, 6
+|===
+
+Na terceira iteração, eliminamos o par stem:[\{0,7\}] (não vou reescrever a tabela). Na quarta iteração, nenhum par é eliminado. Como nenhum par foi eliminado, não há mais pares não-equivalentes e podemos agrupar os pares stem:[\{1,4\}], stem:[\{2,5\}], e stem:[\{3,6\}]. O AFD mínimo equivalente fica da seguinte forma:
+
+image::Q7/ResQ7.svg[Exemplo]
+
+[discrete]
+== Q.8_
+O scanner controlado por tabela busca simular as transições da AFD a partir da checagem de uma ou mais tabelas, enquanto que a codificação direta, como o nome sugere, trata das transições diretamente no código. Ambos consistem em processar o código caractere a caractere, percorrendo o autômato da união das categorias de palavras.
+
+Quando o caractere lido não é válido para as categorias que a subcadeia foi reconhecida, a subcadeia é truncada sem este caractere inválido e adicionada à lista de palavras que será passada adiante no compilador, enquanto o autômato é reiniciado partindo deste caractere inválido. 
+
+Caso este caractere inválido chegue sem a subcadeia ter reconhecido categoria alguma, deverá ser levantado um erro léxico. Para casos de empates, deve ser predefinida uma prioridade.
+
+Como exemplo indico a questão 4, e por brevididade não a repito aqui.
+
+[discrete]
+== Q.9_
+Não feita.
+[discrete]
+== Q.10_
+O parser não conseguirá distinguir entre um caso base após N gerações ou após M gerações (explico melhor se necessário). Para solucionar isso, de forma geral (para um único caso base):
+
+_Assumindo B e C quaisquer_
+[stem]
+++++
+\begin{align*}
+R: &\\
+X &\rightarrow XB \mid C \\
+G: &\\
+X &\rightarrow CX' \\
+X' &\rightarrow BX' \mid \epsilon\\
+R&\equiv G
+\end{align*}
+++++
+[discrete]
+== Q.11_
+O _FIRST(stem:[\beta])_ é o conjunto de caracteres iniciais possíveis de uma dada variável. Na prática ele é necessário para cálculo do _FIRST+_; o _FOLLOW(A)_ é o conjunto de caracteres que seguem uma determinada variável, na prática sendo usado para cálculo do _FIRST+_ e para assegurar a produção de uma variável. O _FIRST+(stem:[A\rightarrow \beta])_ é o conjunto de caracteres iniciais possíveis de uma produção. Através dele se decide qual produção foi escolhida, bem como é necessário que, para que um parser seja LL(1), a intersecção par-a-par entre todas as produção de uma variável sejam o conjunto vazio para todas as variáveis da gramática (sem isso não tem parser topdown).
+[discrete]
+== Q.12_
+Removendo as recursões à esquerda:
+
+[frame=all, format=csv]
+|===
+0, Goal, stem:[\rightarrow], Expr
+1, Expr, stem:[\rightarrow], TermExpr'
+2, Expr', stem:[\rightarrow], +TermExpr'
+3, , |, -TermExpr'
+4, , |, stem:[\epsilon]
+5, Term, stem:[\rightarrow], FactorTerm'
+6, Term', stem:[\rightarrow], *FactorTerm'
+7, , |, /FactorTerm'
+8, , |, stem:[\epsilon]
+9, Factor, stem:[\rightarrow], number
+10, , |, id
+11, , |, (Expr)
+|===
+
+(vou considerar o Goal como sem o sentinela) +
+Calculando o First, follow e first+:
+[frame=all, format=dsv, separator =;]
+|===
+Var; First; Follow; First+
+Goal; stem:[\{(,id,number\}]; stem:[\{\}]; stem:[\{(,id,number\}]
+Expr; stem:[\{(,id,number\}]; stem:[\{),$\}]; stem:[\{(,id,number\}]
+Expr'; stem:[\{\epsilon,-,+\}]; stem:[\{),$\}]; stem:[\{\epsilon,),$,-,+\}]
+Term; stem:[\{(,id,number\}]; stem:[\{),$,-,+\}]; stem:[\{(,id,number\}]
+Term'; stem:[\{\epsilon, /, *\}]; stem:[\{),$,-,+\}]; stem:[\{\epsilon,),$,-,+,/,*\}]
+Factor; stem:[\{(,id,number\}]; stem:[\{\epsilon,),$,-,+,/, *\}]; stem:[\{(,id,number\}]
+|===
+
+OBS.: Aqui o first+ teve o stem:[\epsilon] porque o livro não só define o first+ sem a exclusão do stem:[\epsilon] caso ele esteja contido no first, como também exemplifica justamente esses casos.
+
+Representando o _top down parsing_ com uma derivação em árvore para "x*5+y" temos:
+
+[stem]
+++++
+\begin{align}
+&&Goal(1)&\\
+&&Expr(1) &\\
+&Term(1)&&&&Expr'(1)\\
+Factor(1) && Term'(1) && [+](4) && \quad Term(4)& \quad& Expr'(4)\\
+id[x] &\qquad& [*](2)\quad Factor(2)& \quad Term'(2) && Factor(4) &\quad& Term'(4) & \epsilon(6)\\
+&& number[5](3) & \quad\epsilon (4)& id[y](5) && \epsilon(6)
+\end{align}
+++++
+
+[discrete]
+== Q.13_
+
+Não feita.
