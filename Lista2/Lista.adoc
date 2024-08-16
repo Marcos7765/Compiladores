@@ -1,0 +1,270 @@
+= Resolução da Lista 2 — Compiladores
+Marcos Vinícius Bandeira Irigoyen
+:stem: latexmath
+
+Questões não resolvidas: 11, 12; +
+(10/12) resolvidas;
+
+Códigos, imagens e o markup deste documento se encontram no https://github.com/Marcos7765/compiladores[repositório].
+
+[discrete]
+== Q.1_
+
+Aqui estou acreditando que a OBS do final da página se refira somente à questão 2. Para esse parsing vou mostrar como na página 122 do livro, só que usando parênteses pra sinalizar os níveis da árvore e vírgulas para indicar. À direita, em parênteses, os handles conforme necessário.
+
+2: `x`
+
+3: `Factor(x)` (Factor -> id)
+
+4: `Term(Factor(x))` (Term -> Factor)
+
+5: `Term(Factor(x)), *` (priorizando a handle mais longa já que não estou mostrando estados)
+
+6: `Term(Factor(x)), *, 5`
+
+7: `Term(Factor(x)), *, Factor(5)` (Factor -> id)
+
+8: `Term(Term(Factor(x))*Factor(5))` (Term -> Term * Factor)
+
+9: `Expr(Term(Term(Factor(x))*Factor(5)))` (Expr -> Term)
+
+10: `Expr(Term(Term(Factor(x))*Factor(5))), +`
+
+11: `Expr(Term(Term(Factor(x))*Factor(5))), +, y`
+
+11: `Expr(Term(Term(Factor(x))*Factor(5))), +, Factor(y)` (Factor -> id)
+
+12: `Expr(Term(Term(Factor(x))*Factor(5))), +, Term(Factor(y))` (Term -> Factor)
+
+13: `Expr(Expr(Term(Term(Factor(x))*Factor(5))), +, Term(Factor(y)))` (Expr -> Expr + Term)
+
+14: `Goal(Expr(Expr(Term(Term(Factor(x))*Factor(5))), +, Term(Factor(y))))` (Goal -> Expr)
+
+Por precaução, olaí a tabela (feita pelo computador):
+
+image::Q1.svg[Tabela LR(1)]
+
+[discrete]
+== Q.2_ 
+
+Vou considerar o índice da tabela começando por 1 (shift do índice das 3 primeiras regras), já que a linha 3 foi comida. +
+Tabela action e goto (acaba sendo a mesma do livro, considere os espaços vazios como erros):
+
+image::Q2.svg[Tabela LR(1)]
+
+(se eu quebrar a página aqui a tabela buga)
+
+[discrete]
+=== a) "()(())"
+[frame=all, format=csv]
+|===
+it, s, char, pilha, handle, action
+_init_, —, (, $ 0, —, —
+1, 0, (, $ 0, —, s3
+2, 3, ), $ 0 ( 3, —, s7
+3, 7, (, $ 0 ( 3 ) 7, Pair -> (), r5
+4, 2, (, $ 0 Pair 2, List -> Pair, r3
+5, 1, (, $ 0 List 1, —, s3
+6, 3, (, $ 0 List 1 ( 3, —, s6
+7, 6, ), $ 0 List 1 ( 3 ( 6, —, s10
+8, 10, ), $ 0 List 1 ( 3 ( 6 ) 10, Pair -> (), r5
+9, 5, ), $ 0 List 1 ( 3 Pair 5, —, s8
+10, 8, eof, $ 0 List 1 ( 3 Pair 5 ) 8, Pair -> (Pair), r4
+11, 4, eof, $ 0 List 1 Pair 4, List -> List Pair, r2
+12, 1, eof, $ 0 List 1, Veja abaixo, acc
+|===
+
+A transição de estados da iteração 3 para a iteração 4 se dá pela seguinte forma: +
+Remove-se 4 elementos do topo da pilha (a produção 5 tem 2 símbolos), e transiciona-se ao GOTO do estado do topo da pilha com a variável reduzida (neste caso, GOTO[0, Pair] = 2). Empilhe a variável e o estado resultante do GOTO, respectivamente.
+
+Na iteração 12 ainda poderia-se considerar o desempilhamento de List 1 para Goal, para então restar somente o estado inicial e Goal mas isso não só faltaria ser coberto na tabela quanto é redundante.
+
+[discrete]
+=== b) ")("
+[frame=all, format=csv]
+|===
+it, s, char, pilha, handle, action
+_init_, —, ), $ 0, —, —
+1, 0, ), $ 0, —, e
+|===
+
+O parser levantará um erro/exceção sinalizando que os parenteses estão desequilibrados.
+
+<<<
+
+[discrete]
+== Q.3_
+
+Gramática de atributos, no sentido que foi abordado em sala, é uma forma mais simples de se realizar a análise sensível ao contexto. Por definição, as dependências entre nós podem ser tanto de um nó para um sub-nó (_inherited_ no livro) quando de um sub-nó para um nó (_synthesized_). É dito se ter geradores de _evaluators_ (último parág. da pg. 185) de gramática de atributos, mas pesquisas por tais não foram satisfatórias (o mais comum é geradores de parser permitirem adicionar análise semântica junto as produções, o que tem mais cara de ad hoc).
+
+Essa 'forma mais simples' é em relação ao ad hoc, já que a G.A só precisa elaborar as regras uma única vez por variável/caractere.
+
+Suas desvantagens envolvem o consumo de memória, lidar com valores de nós não diretamente conectados, dependência de uma árvore sintática e acesso aos valores calculados.
+
+[discrete]
+== Q.4_
+
+Ficou bem estranho de entender que contexto se quer que faça nessa questão, e estou com pouco tempo para mandar um e-mail de dúvidas. Vou considerar um contexto que calcule o valor da expressão e vou ignorar a questão do valor de um id.
+
+A G.A seria algo como:
+[stem]
+++++
+\begin{align}
+0.& \ val(Goal) &=& val(Expr) \\
+1.& val(Expr_0) &=& val(Expr1) + val(Term) \\
+2.& val(Expr_0) &=& val(Expr1) - val(Term) \\
+3.& val(Expr) &=& val(Term) \\
+4.& val(Term_0) &=& val(Term_1) * val(Factor) \\
+5.& val(Term_0) &=& val(Term_1) / val(Factor) \\
+6.& val(Term) &=& val(Factor) \\
+7.& val(Factor) &=& val(number) \\
+8.& val(Factor) &=& val(id) \\
+9.& val(Factor) &=& val(Expr) \\
+\end{align}
+++++
+
+Enquanto que, para uma árvore sintática como a da questão 1, temos:
+
+image::q4.svg[Árvore sintática de exemplo, junto da árvore de dependência (em azul)]
+
+[discrete]
+== Q.5_
+O método ad hoc propõe a extração de valores conforme se realiza o parsing, através de funções que seriam chamadas durante o próprio parsing (embutidas nele), sendo especialmente útil para o parser bottom-up. 
+
+Porém sua implementação é mais rígida e tem menos capacidade que uma G.A (em questão de não poder dependender de valores 'acima na árvore').
+
+[discrete]
+== Q.6_
+Os índices correspondem aos índices das produções.
+
+No(Pai, Esq, Dir) := Função para criar um nó Pai. +
+Esq e Dir podem ser caracteres terminais ou outros nós.
+
+[stem]
+++++
+\\
+\begin{align}
+1.& \$\$ &=&  No(+,\$1,\$3)\\
+2.& \$\$ &=&  No(-,\$1,\$3)\\
+3.& \$\$ &=&  $\\
+4.& \$\$ &=&  No(*,\$1,\$3)\\
+5.& \$\$ &=&  No(/,\$1,\$3)\\
+6.& \$\$ &=&  $\\
+7.& \$\$ &=&  $\\
+8.& \$\$ &=&  $\\
+9.& \$\$ &=&  $2\\
+\end{align}
+++++
+
+Aplicando o método junto ao parsing da questão 1, temos a seguinte árvore sintática abstrata (ignore os identificadores, consto aqui que sei que eles não vão para a árvore abstrata mas eu já fechei a aba do draw.io):
+
+image::q6.svg[Árvore sintática abstrata, laranja sem uma razão específica.]
+
+[discrete]
+== Q.7_
+
+Não será considerado o armazenamento de x na memória.
+x = 2*y+z/4
+
+[discrete]
+=== a)
+image::q7a.svg[Árvore sintática abstrata, laranja sem uma razão específica.]
+
+<<<
+
+[discrete]
+=== b)
+
+empilha x +
+empilha 2 +
+empilha y +
+multiplica +
+empilha z +
+empilha 4 +
+divide +
+soma +
+atribui +
+
+"empilha x" adiciona x à pilha, "multiplica", "divide", "soma" e "atribui" desempilham os dois itens do topo da pilha e reempilham o valor retornado pela operação.
+
+[discrete]
+=== c) 
+
+[frame=all, format=csv]
+|===
+dest, op, arg_1, arg_2
+t_1, loadI, 2,
+t_2, load, y,
+t_3, mult, t_1, t_2
+t_4, load, z,
+t_5, loadI, 4,
+t_6, div, t_4, t_5
+t_7, sum, t_3, t_6
+|===
+
+descreve de forma semelhante a como seria em assembly, usando sempre operações que recebem dois registradores operandos e escrevem em um registrador de destino.
+lembre-se que eu disse no início da questão que não ia considerar armazenamento.
+
+[discrete]
+=== d) 
+[frame=all, format=csv]
+|===
+op, arg_1, arg_2
+loadI, 2,
+load, y,
+mult, #1, #2 
+load, z,
+loadI, 4,
+div, #4, #5
+sum, #3, #6
+|===
+
+oculta-se a coluna do registrador de destino e refere-se à linha em que ele foi executado.
+
+[discrete]
+=== e) 
+[frame=all, format=csv]
+|===
+arg_1, op, arg_2
+t_1, loadI, 2
+t_2, load, y
+t_1, mult, t_2
+t_3,load, z
+t_4,loadI, 4
+t_3,div, t_4
+t_1,sum, t_3
+|===
+
+o primeiro argumento não só é um registrador operando como também é o registrador de destino.
+
+[discrete]
+== Q.8_
+Tem-se a abstração de chamada de procedimento (control abstraction no slide), basicamente referindo à execução do procedimento por parte do programa, incluindo passagem de argumentos/parâmetros, contidos no escopo do programa, ao escopo do procedimento, bem como o retorno de valores por parte do procedimento para o programa. (o retorno do fluxo de controle após o fim do procedimento também, para não deixar escondido no 'à execução do procedimento por parte do programa');
+
+Outro é o _name space_, que abstrai problemáticas com conflitos entre nomes de variáveis tanto entre procedimentos quanto com o programa que os chamar. Durante a execução de um procedimento se instancia o name space dele, onde os nomes de variáveis se referem a valores preferencialmente do name space. Este espaço precisa ser criado/reservado durante a chamada (se não qualquer programa 'dinâmico' não roda).
+
+E por último uma interface externa. Trata-se de um consenso na forma em que se chama um procedimento para normalizar o fluxo de controle e assegurar que a chamada de um procedimento dentro de um programa interfira para além de seu funcionamento (à ideia de chamadas de sistema e como após sua resolução não há perda de valores armazenados em registradores pré-chamada). Sem esta convenção, a necessidade de uma análise caso-a-caso impactaria na praticidade de chamadas de procedimento.
+
+[discrete]
+== Q.9_
+É uma estrutura de dados contendo a informação necessária para uma chamada específica de um procedimento, incluindo mas não limitado ao endereço de retorno (isso tanto no sentido de valores de retorno quanto no da instrução a qual retornar), argumentos, variáveis locais, o contexto de quem o chamou (valores prévios à chamada nos registradores).
+
+Seu armazenamento é dependente do compilador e da natureza do procedimento. Para procedimentos cujo o registro de ativação deva ser mantido somente enquanto o procedimento é chamado, ele pode ser armazenado na stack. Caso o registro de ativação deva perdurar mais que quem o chamou (ex.: invocação de thread ou as variáveis _static_ do C), então ele é armazenado na heap. Por fim, caso o procedimento não invoque outros procedimentos e seu RA dure tanto quanto ele próprio, então ele pode ser alocado estaticamente (algo próximo do que seria um inline, mas sem entrar no código)
+
+[discrete]
+== Q.10_
+A IR (representação) fornecida pelo front-end serve de entrada ao otimizador (para compiladores modernos), onde é otimizada (idealmente com otimizações 'universais', mas ainda terão aquelas específicas ao alvo) e retornada como OIR (em inglês é mais comum encontrar optimized intermediate code), de onde chega ao back-end.
+
+O back-end é subdividido em três etapas (aqui se restringindo ao back-end de uma linguagem-alvo de baixo nível para um/uma processador/arquitetura específico): o seletor de instrução, escalonador de instruções e o alocador de registradores.
+
+O seletor de instrução é responsável pela transformação das operações da OIR em instruções da arquitetura alvo, numa estrutura mais próxima do próprio código em assembly, mas usando ainda registradores virtuais. Esse código assembly é passado ao escalonador de instruções, que procura fazer um reordenamento ótimo para o processador em específico (em geral pipelining). Esse código reordenado é então passado ao alocador de registradores, que mapeia e escalona os registradores do processador a esses registradores virtuais. Sua saída é, enfim, o código na linguagem de baixo nível.
+
+[discrete]
+== Q.11_
+Não feito.
+
+[discrete]
+== Q.12_
+Não feito.
+
+[.line-through]#Sim, mas para isso é necessário informações adicionais sobre o tamanho do vetor, dimensões, tamanho dos elementos, se há espaçamento entre elementos (caso não-contíguo)#
